@@ -89,6 +89,7 @@ int32_t FindMiptex(char *name) {
 			}
 			// done.
 			mod_fail = false;
+			printf("calculated texturedef with wad texture rules\n");
 		}
 	}
 
@@ -97,11 +98,13 @@ int32_t FindMiptex(char *name) {
 		if ( moddir[0] != 0 ) {
 			sprintf(pakpath, "textures/%s%s", name, BITEXTURE_EXT );
 			sprintf(path, "%s%s", moddir, pakpath);
+			//printf("attempting to load: %s\n", path );
 			if (TryLoadFile(path, (void **)&mt_bitx, false) != -1||
-    	        TryLoadFileFromPak(pakpath, (void **)&mt, moddir) != -1) {
+				TryLoadFileFromPak(pakpath, (void **)&mt, moddir) != -1) {
+					//printf("opened %s\n", path );
 					if (LittleLong(mt_bitx->id) == BITEXTURE_MAGIC && 
-						LittleLong(mt_bitx->ver_major) == BITEX_VER_MAJOR &&  //TODO; check ranges on the versions!
-						LittleLong(mt_bitx->ver_minor) == BITEX_VER_MINOR) {
+						LittleShort(mt_bitx->ver_major) == BITEX_VER_MAJOR &&  //TODO; check ranges on the versions!
+						LittleShort(mt_bitx->ver_minor) == BITEX_VER_MINOR) {
 						textureref[i].value = LittleLong(mt_bitx->lightvalue);
 						textureref[i].flags = LittleLong(mt_bitx->surfaceflags);
 						textureref[i].contents = LittleLong(mt_bitx->contents);

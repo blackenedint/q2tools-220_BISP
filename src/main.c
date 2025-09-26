@@ -227,7 +227,7 @@ int32_t main(int32_t argc, char *argv[]) {
 
 	printf("\n");
 #else
-    printf("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< q2tool >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
+    printf("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< q2tool >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 #endif
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-bsp")) {
@@ -546,6 +546,20 @@ int32_t main(int32_t argc, char *argv[]) {
         }
 
         SetQdirFromPath(argv[i]);
+
+		#ifdef BLACKENED
+		// default all of the values; command line will override below.
+		if ( bi_base_dir != NULL )
+			strcpy(basedir, bi_base_dir);
+			Q_pathslash(basedir);
+
+			if ( bi_game_dir != NULL ) {
+			strcpy(gamedir, bi_game_dir);
+			Q_pathslash(gamedir);
+			strcpy(moddir, bi_game_dir);
+			Q_pathslash(moddir);
+		}
+		#endif
 
 		if (strcmp(tmoddir, "")) {
 			strcpy(moddir, tmoddir);

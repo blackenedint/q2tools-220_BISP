@@ -230,7 +230,7 @@ void CalcTextureReflectivity(void) {
 		if ( FileExists(path)) {
 			int32_t len = TryLoadFile(path, (void**)&mt_btf, false);
 			if (len != -1) { //TODO: check version ranges.
-				if (LittleLong(mt_btf->id) != BITEXTURE_MAGIC && LittleLong(mt_btf->ver_major) != BITEX_VER_MAJOR &&  LittleLong(mt_btf->ver_minor) != BITEX_VER_MINOR) {
+				if (LittleLong(mt_btf->id) != BITEXTURE_MAGIC && LittleShort(mt_btf->ver_major) != BITEX_VER_MAJOR &&  LittleShort(mt_btf->ver_minor) != BITEX_VER_MINOR) {
 					btf_tex = true;
 					btf_size = (size_t)len;
 				} else  {
@@ -246,7 +246,7 @@ void CalcTextureReflectivity(void) {
 			if (FileExists(path)) {
 				int32_t len = TryLoadFile(path, (void **)&mt_btf, false);
 				if (len != -1) { //TODO: check version ranges.
-					if (LittleLong(mt_btf->id) != BITEXTURE_MAGIC && LittleLong(mt_btf->ver_major) != BITEX_VER_MAJOR &&  LittleLong(mt_btf->ver_minor) != BITEX_VER_MINOR) {
+					if (LittleLong(mt_btf->id) != BITEXTURE_MAGIC && LittleShort(mt_btf->ver_major) != BITEX_VER_MAJOR &&  LittleShort(mt_btf->ver_minor) != BITEX_VER_MINOR) {
 						btf_tex = true;
 						btf_size = (size_t)len;
 					} else  {
