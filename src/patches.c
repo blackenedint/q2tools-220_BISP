@@ -126,39 +126,63 @@ CalcTextureReflectivity
 void CalcTextureReflectivity(void) {
     int32_t i, j, k, count;
     int32_t texels, texel;
-    qboolean wal_tex;
+    qboolean wal_tex = false;
     float color[3], cur_color[3], tex_a, a;
     char path[1200];
     float *r, *g, *b;
     float c;
     byte *pbuffer = NULL; // mxd. "potentially uninitialized local pointer variable" in VS2017 if uninitialized
-
+    byte *palette = NULL;
     byte *palette_frompak = NULL;
-    byte *ptexel;
-    byte *palette;
+    byte *ptexel = NULL;
     miptex_t *mt = NULL; // mxd. "potentially uninitialized local pointer variable" in VS2017 if uninitialized
-    float *fbuffer, *ftexel;
+    float *fbuffer = NULL;
+	float *ftexel = NULL;
     int32_t width, height;
 
-    // for TGA RGBA texture images
+#ifdef BLACKENED
+	bitexture_t* mt_btf = NULL;
+	size_t btf_size = 0;
+	qboolean btf_tex = false;
+	qboolean wal_palette_loaded = false; // extra safety.
+	
 
-    wal_tex = false;
+	if ( !using_wads() ) {
+		qprintf("No WADs loaded\nUsing .BTF, .wal or .tga for reflectivity\n");
+	}
+#endif
 
     // get the game palette
     // qb: looks in moddir then basedir
     sprintf(path, "%spics/colormap.pcx", moddir);
     if (FileExists(path)) {
         Load256Image(path, NULL, &palette, NULL, NULL);
+#ifdef BLACKENED			
+		wal_palette_loaded = true;
+#endif			
     } else {
         sprintf(path, "%spics/colormap.pcx", basedir);
         if(FileExists(path)) {
             Load256Image(path, NULL, &palette, NULL, NULL);
+#ifdef BLACKENED			
+			wal_palette_loaded = true;
+#endif			
         } else if((i = TryLoadFileFromPak("pics/colormap.pcx", (void **)&palette_frompak, moddir)) != -1) {
             // unicat: load from pack files, palette is loaded from the last 768 bytes
             palette = palette_frompak - (i - 768);
+#ifdef BLACKENED			
+			wal_palette_loaded = true;
+#endif			
         } else {
-            Error("unable to load pics/colormap.pcx");
-        }
+#ifdef BLACKENED
+			qprintf( "unable to load pics/colormap.pcx\nWAL textures unavailable\n");
+			if ( !using_wads() ) {
+				qprintf( "Warning: No WADs or WAL textures available for calculating reflectivity; If TGA replacements are also missing, all reflectivity will be default!\n");
+			}
+#else			
+			Error("unable to load pics/colormap.pcx");
+#endif			
+		}
     }
 
     // always set index 0 even if no textures
@@ -185,6 +209,152 @@ void CalcTextureReflectivity(void) {
         if (j != i)
             continue;
 
+#ifdef BLACKENED
+		// if using wads, try and get the average directly from there.
+		// FIXME: This is broken. the texture bytes need saved too, for the rest of rad!!
+		if ( using_wads() ) {
+			float rr, gg, bb;
+			if ( wad_has_texture( texinfo[i].texture) ) {
+				if ( wad_get_texture_avgrbg( texinfo[i].texture, texinfo[i].flags, &rr, &gg, &bb)) {
+        			texture_reflectivity[i][0] = rr;
+        			texture_reflectivity[i][1] = gg;
+        			texture_reflectivity[i][2] = bb;
+					goto calc_reflectivity;
+				}
+			}
+		}
+
+		// look for BTF in moddir
+		sprintf(path, "%stextures/%s%s", moddir, texinfo[i].texture, BITEXTURE_EXT);
+		qprintf("attempting %s\n", path);
+		if ( FileExists(path)) {
+			int32_t len = TryLoadFile(path, (void**)&mt_btf, false);
+			if (len != -1) { //TODO: check version ranges.
+				if (LittleLong(mt_btf->id) != BITEXTURE_MAGIC && LittleLong(mt_btf->ver_major) != BITEX_VER_MAJOR &&  LittleLong(mt_btf->ver_minor) != BITEX_VER_MINOR) {
+					btf_tex = true;
+					btf_size = (size_t)len;
+				} else  {
+					qprintf( "invalid BTF header\n"); 
+					free(mt_btf);
+					mt_btf = NULL;
+				}
+			}
+		} else {
+			// look in base dir.
+			sprintf(path, "%stextures/%s%s", basedir, texinfo[i].texture, BITEXTURE_EXT);
+			qprintf("load %s\n", path);
+			if (FileExists(path)) {
+				int32_t len = TryLoadFile(path, (void **)&mt_btf, false);
+				if (len != -1) { //TODO: check version ranges.
+					if (LittleLong(mt_btf->id) != BITEXTURE_MAGIC && LittleLong(mt_btf->ver_major) != BITEX_VER_MAJOR &&  LittleLong(mt_btf->ver_minor) != BITEX_VER_MINOR) {
+						btf_tex = true;
+						btf_size = (size_t)len;
+					} else  {
+						qprintf( "invalid BTF header\n"); 
+						free(mt_btf);
+						mt_btf = NULL;
+					}
+				}
+			}
+		}
+
+		if ( btf_tex ) {
+			// frame RGBA data is always hdr->width * hdr->height * 4.
+			const uint32_t frame_bytes = mt_btf->width * mt_btf->height * 4;
+			if (frame_bytes <= 0) {
+    			qprintf("tex %i (%s) invalid dimensions %dx%d\n", i, path, mt_btf->width, mt_btf->height);
+    			continue;
+			}
+			
+			// start right after the header
+			byte* p = (byte*)mt_btf + sizeof(bitexture_t);
+			
+			// align to 4 bytes
+			uintptr_t up = (uintptr_t)p;
+			if (up & 3) p += (4 - (up & 3));
+
+			// skip the alternate textures block. we don't care.
+			if ( mt_btf->alternate_count > 0 )
+				p += mt_btf->alternate_count * MAX_BITEXTURE_NAME;
+
+			// read sentinel
+			if ((size_t)(p - (byte*)mt_btf + 8) > btf_size) {
+    			qprintf("tex %i (%s) truncated BTF before frame header\n", i, path);
+    			continue;
+			}
+
+			uint32_t raw_id = *(uint32_t*)p; p += 4;
+			uint32_t rgba_tag = LittleLong(raw_id);
+			
+			if (rgba_tag != BITEXTURE_RGBA) {
+    			qprintf("tex %i (%s) first frame missing (got 0x%08X)\n", i, path, rgba_tag);
+    			continue;
+			}
+			
+			if ((size_t)(p - (byte*)mt_btf + frame_bytes) > btf_size) {
+				qprintf("tex %i (%s) truncated BTF in frame payload\n", i, path);
+    			continue;
+			}
+
+			pbuffer = (byte*)malloc(frame_bytes);
+			if (!pbuffer) {
+    			qprintf("tex %i (%s) unable to allocate %d bytes for frame\n", i, path, frame_bytes);
+    			continue;
+			}
+			
+			// copy only expected RGBA pixels (ignore any padding/extra)
+			memcpy(pbuffer, p, (size_t)frame_bytes);
+
+			color[0] = color[1] = color[2] = 0.0f;
+			ptexel						 = pbuffer;
+			fbuffer						= malloc(texels * 4 * sizeof(float));
+			ftexel						 = fbuffer;
+
+			for (count = texels; count--;) {
+				cur_color[0] 	= (float)(*ptexel++); // r
+				cur_color[1] 	= (float)(*ptexel++); // g
+				cur_color[2] 	= (float)(*ptexel++); // b
+				tex_a			= (float)(*ptexel++);
+
+				if (texinfo[i].flags & (SURF_WARP | SURF_NODRAW)) {
+					a = 0.0; //no contribution.
+				} else if ((texinfo[i].flags & SURF_ALPHATEST)) {
+					// for alpha test, count the pixels that are above the alpha clip as opaque.
+					// otherwise, no contribution.
+					a = (tex_a > 127.5f) ? 1.0f : 0.0f;
+				} else if ((texinfo[i].flags & SURF_TRANSLUCENT) ) {
+					a = tex_a;
+				} else if ((texinfo[i].flags & SURF_TRANS33) && (texinfo[i].flags & SURF_TRANS66)) {
+					a = tex_a / 511.0;
+				} else if (texinfo[i].flags & SURF_TRANS33) {
+					a = tex_a / 765.0;
+				} else if (texinfo[i].flags & SURF_TRANS66) {
+					a = tex_a / 382.5;
+				} else {
+					a = 1.0;
+				}
+
+				for (j = 0; j < 3; j++) {
+					*ftexel++ = cur_color[j] / 255.0;
+					color[j] += cur_color[j] * a;
+				}
+				*ftexel++ = a;
+			}
+
+			texture_data[i] = fbuffer;
+			//NOTE; these don't appear to be actually used anywhere; but I'm setting them anyway.
+			texture_sizes[i][0] = mt_btf->width;
+			texture_sizes[i][1] = mt_btf->height;
+			free(pbuffer);
+			
+			// we can free the loaded buffer now, because the texture data was copied.
+			free(mt_btf);
+			mt_btf = NULL;
+
+			// skip the rest of the wal / tga loading.
+			goto calc_reflectivity;
+		}
+#endif
         // buffer is RGBA  (A  set to 255 for 24 bit format)
         // qb: looks in moddir then basedir
         sprintf(path, "%stextures/%s.tga", moddir, texinfo[i].texture);
@@ -193,6 +363,21 @@ void CalcTextureReflectivity(void) {
             LoadTGA(path, &pbuffer, &width, &height); // load rgba data
             qprintf("load %s\n", path);
         } else {
+			#ifdef BLACKENED
+			if ( !wal_palette_loaded ) {
+				// skip .wal and attempt a tga in basedir.
+				sprintf(path, "%stextures/%s.tga", basedir, texinfo[i].texture);
+				 if (FileExists(path)) {
+					LoadTGA(path, &pbuffer, &width, &height); // load rgba data
+					qprintf("load %s\n", path);
+                }
+				else {
+						qprintf("NOT FOUND %s\n", path);
+						continue;
+				}
+			}
+			#endif
+
             // look for wal file in moddir
             sprintf(path, "%stextures/%s.wal", moddir, texinfo[i].texture);
             qprintf("attempting %s\n", path);
@@ -203,7 +388,8 @@ void CalcTextureReflectivity(void) {
                 if (TryLoadFile(path, (void **)&mt, false) != -1)
                     wal_tex = true;
             } else {
-                // look for TGA in basedir            sprintf(path, "%stextures/%s.tga", basedir, texinfo[i].texture);
+                // look for TGA in basedir            
+				sprintf(path, "%stextures/%s.tga", basedir, texinfo[i].texture);
                 if (FileExists(path)) {
                     LoadTGA(path, &pbuffer, &width, &height); // load rgba data
                     qprintf("load %s\n", path);
@@ -285,6 +471,10 @@ void CalcTextureReflectivity(void) {
             c                          = color[j] / (float)texels / 255.0f;
             texture_reflectivity[i][j] = c;
         }
+
+#ifdef BLACKENED
+calc_reflectivity:
+#endif		
 
 // reflectivity saturation
 #define Pr .299

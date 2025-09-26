@@ -462,7 +462,11 @@ mipparm_t mipparms[] =
         {"hint", SURF_HINT, pt_flags},
         {"skip", SURF_SKIP, pt_flags},
         {"alphatest", SURF_ALPHATEST, pt_flags}, //qb: texture with holes, like fence or grate
-        {"N64tex", SURF_N64_UV, pt_flags}, //qb: texture with holes, like fence or grate
+#ifdef BLACKENED
+        {"translucent", SURF_TRANSLUCENT, pt_flags}, // translucent; alpha is intensity
+#else		
+        {"N64tex", SURF_N64_UV, pt_flags}, //N64 UV and surface flag hack
+#endif		
         {"scrollx", SURF_SCROLLX, pt_flags}, //qb: texture with holes, like fence or grate
         {"scrolly", SURF_SCROLLY, pt_flags}, //qb: texture with holes, like fence or grate
         {"scrollflip", SURF_SCROLLFLIP, pt_flags}, //qb: texture with holes, like fence or grate

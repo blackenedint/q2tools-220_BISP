@@ -29,6 +29,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <windows.h>
 #endif
 
+#ifdef BLACKENED
+#include "tex_wad3.h"
+#include "bi_texture.h"
+#endif
+
 typedef enum {
     emit_surface,
     emit_point,

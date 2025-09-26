@@ -23,7 +23,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "bspfile.h"
 #include "scriplib.h"
 
+#ifdef BLACKENED
+// qbsp is forced with custom header.
+const qboolean use_qbsp  = true;
+#else
 qboolean use_qbsp  = false; // qb: huge map support
+#endif
 qboolean noskipfix = false; // qb: warn about SURF_SKIP contents rather than silently changing to zero
 
 void GetLeafNums(void);
@@ -441,15 +446,19 @@ void LoadBSPFile(char *filename) {
     for (i = 0; i < sizeof(dheader_t) / 4; i++)
         ((int32_t *)header)[i] = LittleLong(((int32_t *)header)[i]);
 
+#ifndef BLACKENED
     // qb: qbsp
     use_qbsp = false;
+#endif    
 
     switch (header->ident) {
     case IDBSPHEADER:
         break;
     case QBSPHEADER:
+#ifndef BLACKENED //it's always on; no need to update or print.
         use_qbsp = true;
         printf("using QBSP extended limits \n");
+#endif        
         break;
     default:
         Error("%s is not a recognized BSP file (IBSP or QBSP).",
@@ -462,13 +471,16 @@ void LoadBSPFile(char *filename) {
     numvertexes = CopyLump(LUMP_VERTEXES, dvertexes, sizeof(dvertex_t));
     numplanes   = CopyLump(LUMP_PLANES, dplanes, sizeof(dplane_t));
 
+#ifndef BLACKENED    
     if (use_qbsp) {
+#endif        
         numleafs       = CopyLump(LUMP_LEAFS, dleafsX, sizeof(dleaf_tx));
         numnodes       = CopyLump(LUMP_NODES, dnodesX, sizeof(dnode_tx));
         numtexinfo     = CopyLump(LUMP_TEXINFO, texinfo, sizeof(texinfo_t));
         numfaces       = CopyLump(LUMP_FACES, dfacesX, sizeof(dface_tx));
         numleaffaces   = CopyLump(LUMP_LEAFFACES, dleaffacesX, sizeof(dleaffacesX[0]));
         numleafbrushes = CopyLump(LUMP_LEAFBRUSHES, dleafbrushesX, sizeof(dleafbrushesX[0]));
+#ifndef BLACKENED        
     } else {
         numleafs       = CopyLump(LUMP_LEAFS, dleafs, sizeof(dleaf_t));
         numnodes       = CopyLump(LUMP_NODES, dnodes, sizeof(dnode_t));
@@ -477,6 +489,7 @@ void LoadBSPFile(char *filename) {
         numleaffaces   = CopyLump(LUMP_LEAFFACES, dleaffaces, sizeof(dleaffaces[0]));
         numleafbrushes = CopyLump(LUMP_LEAFBRUSHES, dleafbrushes, sizeof(dleafbrushes[0]));
     }
+#endif    
 
     numsurfedges = CopyLump(LUMP_SURFEDGES, dsurfedges, sizeof(dsurfedges[0]));
 
@@ -712,6 +725,9 @@ void StripTrailing(char *e) {
 ParseEpair
 =================
 */
+#ifdef BLACKENED
+char* wad_parsevalue(char* value);
+#endif
 epair_t *ParseEpair(void) {
     epair_t *e;
 
@@ -722,9 +738,19 @@ epair_t *ParseEpair(void) {
         Error("ParseEpar: token too long");
     e->key = copystring(token);
     GetToken(false);
-    if (strlen(token) >= MAX_VALUE - 1)
+
+#ifdef BLACKENED	
+	// okay this is hack of the century.
+	if ( !strncmp( e->key, "wad", MAX_KEY ) ) {
+		e->value = wad_parsevalue(token);
+	} else {
+#endif		
+	    if (strlen(token) >= MAX_VALUE - 1)
         Error("ParseEpar: token too long");
-    e->value = copystring(token);
+    	e->value = copystring(token);
+#ifdef BLACKENED		
+	}
+#endif	
 
     // strip trailing spaces
     StripTrailing(e->key);

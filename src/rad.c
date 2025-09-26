@@ -854,6 +854,11 @@ void RAD_ProcessArgument(const char *arg) {
         maxdata = MAX_MAP_LIGHTING_QBSP;
     }
     ParseEntities();
+
+#ifdef BLACKENED
+	wad_init(false);
+#endif
+
     if (h2tex)
         CalcTextureReflectivity_Heretic2();
     else

@@ -270,10 +270,18 @@ typedef struct miptex_m32_s
 #define IDBSPHEADER              (('P' << 24) + ('S' << 16) + ('B' << 8) + 'I')
 // little-endian "IBSP"
 
+#ifdef BLACKENED
+#define QBSPHEADER              (('P' << 24) + ('S' << 16) + ('I' << 8) + 'B')
+
+#define BSPVERSION               91 // B(42) + I(49)
+#else
 // qb: qbsp
 #define QBSPHEADER               ('Q' | ('B' << 8) | ('S' << 16) | ('P' << 24))
 
 #define BSPVERSION               38
+
+#endif
+
 
 // upper design bounds
 // leaffaces, leafbrushes, planes, and verts are still bounded by
@@ -445,25 +453,27 @@ typedef struct
 #define CONTENTS_TRANSLUCENT  0x10000000 // auto set if any surface has trans
 #define CONTENTS_LADDER       0x20000000
 
-#define SURF_LIGHT            0x1 // value will hold the light strength
+#define SURF_LIGHT			(uint32_t)(1 << 0) // value will hold the light strength
+#define SURF_SLICK			(uint32_t)(1 << 1) // affects game physics
+#define SURF_SKY			(uint32_t)(1 << 2) // don't draw, but add to skybox
+#define SURF_WARP			(uint32_t)(1 << 3) // turbulent water warp
+#define SURF_TRANS33		(uint32_t)(1 << 4) // 33% alpha blend
+#define SURF_TRANS66		(uint32_t)(1 << 5) // 66% alpha blend
+#define SURF_FLOWING		(uint32_t)(1 << 6) // scroll towards angle
+#define SURF_NODRAW			(uint32_t)(1 << 7) // don't bother referencing the texture
+#define SURF_HINT			(uint32_t)(1 << 8) // make a bsp splitter
+#define SURF_SKIP			(uint32_t)(1 << 9) // ignore surface to make non-closed brushes
+#define SURF_ALPHATEST		(uint32_t)(1 << 25) //alpha test flag
 
-#define SURF_SLICK            0x2 // effects game physics
+#ifdef BLACKENED
+#define SURF_TRANSLUCENT	(uint32_t)(1 << 28) //translucent; use alpha for intensity
+#else
+#define SURF_N64_UV			(uint32_t)(1 << 28) //N64 UV and surface flag hack
+#endif
 
-#define SURF_SKY              0x4  // don't draw, but add to skybox
-#define SURF_WARP             0x8  // turbulent water warp
-#define SURF_TRANS33          0x10 // 33% alpha blend
-#define SURF_TRANS66          0x20 // 66% alpha blend
-#define SURF_FLOWING          0x40 // scroll towards angle
-#define SURF_NODRAW           0x80 // don't bother referencing the texture
-
-#define SURF_HINT             0x0100 // make a bsp splitter
-#define SURF_SKIP             0x0200 // ignore surface to make non-closed brushes
-
-#define SURF_ALPHATEST        (uint32_t)1 << 25 //alpha test flag
-#define SURF_N64_UV           (uint32_t)1 << 28 //N64 UV and surface flag hack
-#define SURF_SCROLLX          (uint32_t)1 << 29 //slow x scroll
-#define SURF_SCROLLY          (uint32_t)1 << 30 //slow y scroll
-#define SURF_SCROLLFLIP       (uint32_t)1 << 31 //flip scroll directon
+#define SURF_SCROLLX		(uint32_t)(1 << 29) //slow x scroll
+#define SURF_SCROLLY		(uint32_t)(1 << 30) //slow y scroll
+#define SURF_SCROLLFLIP		(uint32_t)(1 << 31) //flip scroll directon
 
 
 // qb: qbsp types - dnode_tx, dedge_tx, dface_tx, dleaf_tx, dbrushside_tx

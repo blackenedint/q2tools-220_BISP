@@ -659,8 +659,10 @@ void BeginModel(void) {
     vec3_t mins, maxs;
 
     if (use_qbsp) {
+#ifndef BLACKENED		
         if (nummodels == WARN_MAP_MODELS_QBSP)
             printf("WARNING: nummodels may exceed protocol limit (%i)\n", WARN_MAP_MODELS_QBSP);
+#endif			
         if (nummodels == MAX_MAP_MODELS_QBSP)
             Error("nummodels exceeds MAX_MAP_MODELS_QBSP");
     } else if (nummodels == MAX_MAP_MODELS)

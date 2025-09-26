@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"qbsp.h": "c",
+			"polylib.h": "c",
+			"typeinfo": "c",
+			"qrad.h": "c"
+		}
+	}
+}

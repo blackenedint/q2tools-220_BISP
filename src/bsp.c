@@ -333,8 +333,10 @@ void BSP_ProcessArgument(const char * arg) {
 
         sprintf(out, "%s.bsp", source);
         LoadBSPFile(out);
+#ifndef BLACKENED //don't need to see this.
         if (use_qbsp)
             printf("use_qbsp = true\n");
+#endif			
 
         num_entities = 0;
 
@@ -354,6 +356,11 @@ void BSP_ProcessArgument(const char * arg) {
         LoadMapFile(name);
         SetModelNumbers();
         SetLightStyles();
+
+#ifdef BLACKENED
+		// initialize wads.
+		wad_init();
+#endif		
 
         ProcessModels();
     }

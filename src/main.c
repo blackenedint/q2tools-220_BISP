@@ -23,10 +23,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "qfiles.h"
 #include "threads.h"
 
+#include "buildnum.h"
+
 static char *help_string =
+#ifdef BLACKENED
+    "\n============================== bimap HELP ==============================\n"
+    "bimap: bsp,vis,rad,and data combined. Supports v220 maps and qbsp extended limits.\n"
+    "Usage: bimap [mode] [options] [file]\n\n"
+#else
     "\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< q2tool HELP >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n"
     "q2tool: bsp,vis,rad,and data combined. Supports v220 maps and qbsp extended limits.\n"
     "Usage: q2tool [mode] [options] [file]\n\n"
+#endif    
     "    -moddir [path]: Set a mod directory. Default is parent dir of map file.\n"
     "    -basedir [path]: Set the directory for assets not in moddir. Default is moddir.\n"
     "    -gamedir [path]: Set game directory, the folder with game executable.\n"
@@ -38,11 +46,15 @@ static char *help_string =
     "        Default: 240  Range: 32-1024\n"
     "    -choplight #: Subdivide size for surface lights.\n"
     "        Default: 240  Range: 32-1024\n"
+#ifndef BLACKENED    
     "    -largebounds or -lb: Increase max map size for supporting engines.\n"
+#endif    
     "    -micro #: Minimum microbrush size. Default: 0.02\n"
     "        Suggested range: 0.02 - 1.0\n"
     "    -nosubdiv: Disable subdivision.\n"
+#ifndef BLACKENED    
     "    -qbsp: Greatly expanded map and entity limits for supporting engines.\n"
+#endif    
     "bsp debugging options:\n"
     "    -block # #: Division tree block size, square\n"
     "    -blocks # # # #: Div tree block size, rectangular\n"
@@ -164,21 +176,59 @@ void RAD_ProcessArgument(const char *arg);
 void DATA_ProcessArgument(const char *arg);
 void BeginPak(char *outname);
 
-int32_t main(int32_t argc, char *argv[]) {
-    char tgamedir[1024] = "";
-    char tbasedir[1024] = "";
-    char tmoddir[1024]  = "";
-    int32_t i;
+const char* Plat_GetEnvironment( const char* pEnvVarName )
+{
+    return getenv( pEnvVarName );
+}
 
-    qboolean do_bsp  = false;
-    qboolean do_vis  = false;
-    qboolean do_rad  = false;
-    qboolean do_data = false;
+
+int32_t main(int32_t argc, char *argv[]) {
+	char tgamedir[1024] = "";
+	char tbasedir[1024] = "";
+    char tmoddir[1024]  = "";
+	int32_t i;
+
+	qboolean do_bsp  = false;
+	qboolean do_vis  = false;
+	qboolean do_rad  = false;
+	qboolean do_data = false;
 
     ThreadSetDefault();
+#ifdef BLACKENED
+    printf("\n\n=============================== bimap =================================\n");
+    printf("Map build tool for Secret Cell: Vigil7\n");
+    printf("Forked from q2tools-220: https://github.com/qbism/q2tools-220\n");
+    printf( "Build %i %s %s\n", build_number( 20250923 ), __DATE__, __TIME__ );
+    printf("=======================================================================\n");
 
+	const char* bi_base_dir = Plat_GetEnvironment( "BIBASE" );
+    const char* bi_game_dir = Plat_GetEnvironment( "BIGAME" );
+
+	// if only one of the two is set; apply appropriately.
+	if ( bi_game_dir == NULL && bi_base_dir != NULL )
+		bi_game_dir = bi_base_dir;
+	else if (bi_base_dir == NULL && bi_game_dir != NULL )
+		bi_base_dir = bi_game_dir;
+	
+	if ( bi_game_dir != NULL )
+		printf( "\tBIBASE [%s]\n", bi_base_dir);
+	else
+		printf("tBIBASE is not Set\n" );
+
+	// if they are the same only print one.
+	if (strcmp(bi_game_dir, bi_base_dir ) ) {
+		printf( "\tBIGAME [%s]\n", bi_game_dir);
+	} else {
+		if ( bi_game_dir != NULL )
+			printf( "\tBIGAME [%s]\n", bi_game_dir);
+		else
+			printf("\tBIGAME is not Set\n" );
+	}
+
+	printf("\n");
+#else
     printf("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< q2tool >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
-
+#endif
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-bsp")) {
             do_bsp = true;
@@ -248,7 +298,9 @@ int32_t main(int32_t argc, char *argv[]) {
         } else if (!strcmp(argv[i], "-noskipfix")) {
             printf("noskipfix = true\n");
             noskipfix = true;
-        } else if (!strcmp(argv[i], "-largebounds") || !strcmp(argv[i], "-lb")) {
+        }
+#ifndef BLACKENED            
+        else if (!strcmp(argv[i], "-largebounds") || !strcmp(argv[i], "-lb")) {
             // qb: from kmqbsp3- Knightmare added
             if (use_qbsp) {
                 printf("[-largebounds is not required with -qbsp]\n");
@@ -258,17 +310,21 @@ int32_t main(int32_t argc, char *argv[]) {
                 printf("largebounds: using max bound size of %i\n", MAX_MAP_SIZE);
             }
         }
+#endif        
         // qb:  set gamedir, moddir, and basedir
         else if (!strcmp(argv[i], "-gamedir")) {
             strcpy(tgamedir, argv[i + 1]);
             i++;
-        } else if (!strcmp(argv[i], "-moddir")) {
+        } 
+        else if (!strcmp(argv[i], "-moddir")) {
             strcpy(tmoddir, argv[i + 1]);
             i++;
-        } else if (!strcmp(argv[i], "-basedir")) {
+        } 
+        else if (!strcmp(argv[i], "-basedir")) {
             strcpy(tbasedir, argv[i + 1]);
             i++;
-        } else if (!strcmp(argv[i], "-chop")) {
+        } 
+        else if (!strcmp(argv[i], "-chop")) {
             subdivide_size = atof(argv[i + 1]);
             if (subdivide_size < 32) {
                 subdivide_size = 32;
@@ -449,8 +505,13 @@ int32_t main(int32_t argc, char *argv[]) {
     }
 
     if (argc <= 1) {
+#ifdef BLACKENED        
+        printf("Usage: bimap [mode] [options] [file]\n"
+               "For complete options list:  bimap -help\n"
+#else
         printf("Usage: q2tool [mode] [options] [file]\n"
                "For complete options list:  q2tool -help\n"
+#endif               
                "-bsp\n"
                "    -chop #                  -choplight #         -qbsp \n"
                "    -largebounds             -micro #             -nosubdiv\n\n"
@@ -486,21 +547,21 @@ int32_t main(int32_t argc, char *argv[]) {
 
         SetQdirFromPath(argv[i]);
 
-        if (strcmp(tmoddir, "")) {
-            strcpy(moddir, tmoddir);
-            Q_pathslash(moddir);
-            strcpy(basedir, moddir);
-        }
-        if (strcmp(tbasedir, "")) {
-            strcpy(basedir, tbasedir);
-            Q_pathslash(basedir);
-            if (!strcmp(tmoddir, ""))
-                strcpy(moddir, basedir);
-        }
-        if (strcmp(tgamedir, "")) {
-            strcpy(gamedir, tgamedir);
-            Q_pathslash(gamedir);
-        }
+		if (strcmp(tmoddir, "")) {
+			strcpy(moddir, tmoddir);
+			Q_pathslash(moddir);
+			strcpy(basedir, moddir);
+		}
+		if (strcmp(tbasedir, "")) {
+			strcpy(basedir, tbasedir);
+			Q_pathslash(basedir);
+			if (!strcmp(tmoddir, ""))
+				strcpy(moddir, basedir);
+		}
+		if (strcmp(tgamedir, "")) {
+			strcpy(gamedir, tgamedir);
+			Q_pathslash(gamedir);
+		}
 
         // qb: display dirs
         printf("moddir = %s\n", moddir);

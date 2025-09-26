@@ -25,6 +25,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "threads.h"
 #include "bspfile.h"
 
+#ifdef BLACKENED
+#include "tex_wad3.h"
+#include "bi_texture.h"
+#endif
+
 #define MAX_BRUSH_SIDES 128
 #define TEXINFO_NODE    -1 // side is already on a node
 

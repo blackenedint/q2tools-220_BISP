@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.11)
 project(q2tools-220 LANGUAGES C)
 
+# default on for now, because i'm using vscode in automatic mode.
+option(TOOLS_BLACKENED "Blackened Interactive BSP format" ON)
+if (TOOLS_BLACKENED)
+	add_compile_definitions(BLACKENED)
+endif()	
+
+# silence the warnings when building with MSVC.
+if(MSVC)
+	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+endif()
 
 set(Q2T_USE_PTHREADS ON CACHE BOOL "compile with pthread support")
 
@@ -56,15 +66,24 @@ add_library(libq2tool STATIC
     src/sprites.c
     src/tables.c
     src/video.c
+
+# blackened interactive
+    "$<$<BOOL:${TOOLS_BLACKENED}>:src/strtools.c>"
+    "$<$<BOOL:${TOOLS_BLACKENED}>:src/tex_wad3.c>"
+    "$<$<BOOL:${TOOLS_BLACKENED}>:src/bi_texture.c>"
 )
 target_include_directories(libq2tool PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/common)
 
-add_executable(q2tool src/main.c)
+if(TOOLS_BLACKENED)
+	set(TOOL_NAME bimap)
+else()
+	set(TOOL_NAME q2tool)
+endif()
 
-
-target_link_libraries(q2tool q2tools-i libq2tool)
-
-install(TARGETS q2tool)
+add_executable(${TOOL_NAME} src/main.c)
+target_link_libraries(${TOOL_NAME} q2tools-i libq2tool)
+install(TARGETS ${TOOL_NAME})
 
 enable_testing()
-add_test(NAME q2tool COMMAND q2tool -bsp)
+add_test(NAME ${TOOL_NAME} COMMAND ${TOOL_NAME} -bsp)
+
