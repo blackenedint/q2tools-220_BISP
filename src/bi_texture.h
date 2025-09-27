@@ -7,11 +7,12 @@
 
 #include "cmdlib.h"
 
-#define BITEXTURE_MAGIC  	(('F'<<24) + ('T'<<16) + ('I'<<8) + 'B') //BITX (bi [t]e[x]ture)
-#define BITEXTURE_RGBA  	(('A'<<24) + ('B'<< 16) + ('G'<<8) + 'R') //BITF (bi [t]exture [f]rame)
-#define BITEX_VER_MAJOR 1
-#define BITEX_VER_MINOR 0
+#define BTF_IDENT  	(('F'<<24) + ('T'<<16) + ('I'<<8) + 'B') //BITX (bi [t]e[x]ture)
+#define BTF_FRAMEID  	(('M'<<24) + ('A'<< 16) + ('R'<<8) + 'F') //BITF (bi [t]exture [f]rame)
+#define BTF_VER_MAJOR 1
+#define BTF_VER_MINOR 0
 
+#define SHA1_BUFFER_SIZE 20
 #define MAX_BITEXTURE_NAME  64
 
 // maintaining the same limit of named textures.
@@ -20,27 +21,84 @@
 // +a +b +c +d +e +f +g +h +i +j (alternates)
 #define MAX_TEXTURE_FRAMES 10
 #define MAX_ALTERNATE_TEX 10
-static const char* BITEXTURE_EXT = ".btf";
+static const char* BITEXTURE_EXT = "btf"; //leave with the . for bimap
 
-typedef struct
+typedef enum
 {
-	uint32_t id;
-	int16_t ver_major;
-	int16_t ver_minor;
-	int16_t compressiontype;
-	int16_t animType;
+	FMT_RGBA = 0,
+	// FUTURE (TBD)
+	FMT_RGB,
+	FMT_ARGB,
+} btf_format;
 
+typedef enum
+{
+	Anim_None = 0,
+	Anim_Sequence,
+	Anim_Random
+} btf_anim_type;
+
+typedef struct btf_header_s
+{
+	uint32_t 	ident;
+	int16_t 	ver_major;
+	int16_t 	ver_minor;
+} btf_header_t;
+
+typedef struct btf_texinfo_s
+{
+	int32_t		width;
+	int32_t		height;
+
+	int16_t		compressiontype;
+	int16_t		format;
+	int16_t		animType;
+	int16_t		frame_count;
+
+	int32_t		metadatasize;
+	uint32_t	metadatatype;
+
+	byte		reserved[44];
+} btf_texinfo_t;
+
+typedef struct btf_frame_s
+{
+	uint32_t	ident;
+	char		sha1[SHA1_BUFFER_SIZE];
+	byte		reserved[36];
+} btf_frame_t;
+
+// metadata for quake2/vigil7
+#define BTF_METAQ2 (('A'<<24) + ('T'<<16) + ('M'<<8) + 'Q')	//QMTA
+typedef struct btf_q2meta_s
+{
+	int32_t		surfaceflags;
+	int32_t		contents;
+	float		value;
+	int16_t		emissive;
+	int16_t		alternate_count;
+	//								//16
+} btf_q2meta_t;
+
+
+// to make my life not complete hell.
+typedef struct btf_texture_s
+{
 	int32_t width;
 	int32_t height;
 
+	// q2 data.
 	int32_t surfaceflags;
 	int32_t contents;
-	int32_t lightvalue;		// only for SURF_LIGHT. nothing else uses it.
-	int16_t emissive;		// texture is emissive; alpha is mask.
-	int16_t	pad1;
+	int32_t value;
 
-	int16_t alternate_count;
-	int16_t frame_count;
-} bitexture_t;
+	btf_format colorformat;
+	byte* colordata;
+	size_t colordatasize;
+} btf_texture_t;
+
+qboolean BTFLoadFromBuffer( byte* buffer, size_t buffersize, qboolean include_colordata, btf_texture_t* outTexture);
+
+
 
 #endif // BI_TEXTURE_H

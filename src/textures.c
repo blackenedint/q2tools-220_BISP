@@ -33,9 +33,10 @@ int32_t FindMiptex(char *name) {
     miptex_t *mt;
     miptex_m8_t *mt_m8; // qb: attempt to add Heretic II support
     miptex_m32_t *mt_m32;
+
 #ifdef BLACKENED
-	bitexture_t *mt_bitx;
-#endif	
+	btf_header_t* btf_hdr;
+#endif		
 
     for (i = 0; i < nummiptex; i++)
         if (!strcmp(name, textureref[i].name)) {
@@ -96,21 +97,23 @@ int32_t FindMiptex(char *name) {
 	// look for BI textures.
 	if ( mod_fail ) {
 		if ( moddir[0] != 0 ) {
-			sprintf(pakpath, "textures/%s%s", name, BITEXTURE_EXT );
+			sprintf(pakpath, "textures/%s.%s", name, BITEXTURE_EXT );
 			sprintf(path, "%s%s", moddir, pakpath);
 			//printf("attempting to load: %s\n", path );
-			if (TryLoadFile(path, (void **)&mt_bitx, false) != -1||
-				TryLoadFileFromPak(pakpath, (void **)&mt, moddir) != -1) {
-					//printf("opened %s\n", path );
-					if (LittleLong(mt_bitx->id) == BITEXTURE_MAGIC && 
-						LittleShort(mt_bitx->ver_major) == BITEX_VER_MAJOR &&  //TODO; check ranges on the versions!
-						LittleShort(mt_bitx->ver_minor) == BITEX_VER_MINOR) {
-						textureref[i].value = LittleLong(mt_bitx->lightvalue);
-						textureref[i].flags = LittleLong(mt_bitx->surfaceflags);
-						textureref[i].contents = LittleLong(mt_bitx->contents);
-						mod_fail = false;
-					}
-				free( mt_bitx );
+			byte* btf_buf;
+			size_t btf_len = -1;
+			if ( (btf_len = TryLoadFile(path, (void **)&btf_buf, false)) != -1 ||
+				 (btf_len = TryLoadFileFromPak(pakpath, (void **)&btf_buf, moddir)) != -1) {
+				btf_texture_t btf_texture;
+				memset(&btf_texture, 0, sizeof(btf_texture_t));
+				if ( BTFLoadFromBuffer( btf_buf, btf_len,  /*include_colordata*/false, &btf_texture)) {
+					textureref[i].value = btf_texture.value;
+					textureref[i].flags = btf_texture.surfaceflags;
+					textureref[i].contents = btf_texture.contents;
+					//printf("%s contents: %i flags: %i value: %i\n", name, textureref[i].contents, textureref[i].flags, textureref[i].value);
+					mod_fail = false;
+				}					
+				free( btf_buf );
 			}
 		}
 	}

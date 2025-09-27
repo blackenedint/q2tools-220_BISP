@@ -129,6 +129,7 @@ void CalcTextureReflectivity(void) {
     qboolean wal_tex = false;
     float color[3], cur_color[3], tex_a, a;
     char path[1200];
+	char pakpath[56];
     float *r, *g, *b;
     float c;
     byte *pbuffer = NULL; // mxd. "potentially uninitialized local pointer variable" in VS2017 if uninitialized
@@ -141,9 +142,11 @@ void CalcTextureReflectivity(void) {
     int32_t width, height;
 
 #ifdef BLACKENED
-	bitexture_t* mt_btf = NULL;
-	size_t btf_size = 0;
-	qboolean btf_tex = false;
+	btf_texture_t btf_texture;
+	memset(&btf_texture, 0, sizeof(btf_texture_t));
+	byte* btf_buffer = NULL;
+
+	qboolean have_btf_texture = false;
 	qboolean wal_palette_loaded = false; // extra safety.
 	
 
@@ -225,90 +228,36 @@ void CalcTextureReflectivity(void) {
 		}
 
 		// look for BTF in moddir
-		sprintf(path, "%stextures/%s%s", moddir, texinfo[i].texture, BITEXTURE_EXT);
+		sprintf(pakpath, "textures/%s.%s", texinfo[i].texture, BITEXTURE_EXT );
+		sprintf(path, "%s%s", moddir, pakpath);
 		qprintf("attempting %s\n", path);
-		if ( FileExists(path)) {
-			int32_t len = TryLoadFile(path, (void**)&mt_btf, false);
-			if (len != -1) { //TODO: check version ranges.
-				if (LittleLong(mt_btf->id) != BITEXTURE_MAGIC && LittleShort(mt_btf->ver_major) != BITEX_VER_MAJOR &&  LittleShort(mt_btf->ver_minor) != BITEX_VER_MINOR) {
-					btf_tex = true;
-					btf_size = (size_t)len;
-				} else  {
-					qprintf( "invalid BTF header\n"); 
-					free(mt_btf);
-					mt_btf = NULL;
-				}
+		size_t len = TryLoadFile( path, (void**)&btf_buffer, false);
+		if ( len == -1 )
+			len = TryLoadFileFromPak(pakpath, (void **)&btf_buffer, moddir);
+		if ( len != -1 ) {
+			if ( BTFLoadFromBuffer( btf_buffer, len, true, &btf_texture)) {
+				have_btf_texture = true;
 			}
 		} else {
 			// look in base dir.
-			sprintf(path, "%stextures/%s%s", basedir, texinfo[i].texture, BITEXTURE_EXT);
+			sprintf(path, "%s%s", basedir, pakpath);
 			qprintf("load %s\n", path);
-			if (FileExists(path)) {
-				int32_t len = TryLoadFile(path, (void **)&mt_btf, false);
-				if (len != -1) { //TODO: check version ranges.
-					if (LittleLong(mt_btf->id) != BITEXTURE_MAGIC && LittleShort(mt_btf->ver_major) != BITEX_VER_MAJOR &&  LittleShort(mt_btf->ver_minor) != BITEX_VER_MINOR) {
-						btf_tex = true;
-						btf_size = (size_t)len;
-					} else  {
-						qprintf( "invalid BTF header\n"); 
-						free(mt_btf);
-						mt_btf = NULL;
-					}
-				}
+			len = TryLoadFile( path, (void**)&btf_buffer, false );
+			if ( len == -1 )
+				len = TryLoadFileFromPak(pakpath, (void **)&btf_buffer, basedir);
+			if ( len != -1 ) {
+				if ( BTFLoadFromBuffer( btf_buffer, len, true, &btf_texture)) {
+					have_btf_texture = true;
+				}				
 			}
 		}
 
-		if ( btf_tex ) {
-			// frame RGBA data is always hdr->width * hdr->height * 4.
-			const uint32_t frame_bytes = mt_btf->width * mt_btf->height * 4;
-			if (frame_bytes <= 0) {
-    			qprintf("tex %i (%s) invalid dimensions %dx%d\n", i, path, mt_btf->width, mt_btf->height);
-    			continue;
-			}
-			
-			// start right after the header
-			byte* p = (byte*)mt_btf + sizeof(bitexture_t);
-			
-			// align to 4 bytes
-			uintptr_t up = (uintptr_t)p;
-			if (up & 3) p += (4 - (up & 3));
-
-			// skip the alternate textures block. we don't care.
-			if ( mt_btf->alternate_count > 0 )
-				p += mt_btf->alternate_count * MAX_BITEXTURE_NAME;
-
-			// read sentinel
-			if ((size_t)(p - (byte*)mt_btf + 8) > btf_size) {
-    			qprintf("tex %i (%s) truncated BTF before frame header\n", i, path);
-    			continue;
-			}
-
-			uint32_t raw_id = *(uint32_t*)p; p += 4;
-			uint32_t rgba_tag = LittleLong(raw_id);
-			
-			if (rgba_tag != BITEXTURE_RGBA) {
-    			qprintf("tex %i (%s) first frame missing (got 0x%08X)\n", i, path, rgba_tag);
-    			continue;
-			}
-			
-			if ((size_t)(p - (byte*)mt_btf + frame_bytes) > btf_size) {
-				qprintf("tex %i (%s) truncated BTF in frame payload\n", i, path);
-    			continue;
-			}
-
-			pbuffer = (byte*)malloc(frame_bytes);
-			if (!pbuffer) {
-    			qprintf("tex %i (%s) unable to allocate %d bytes for frame\n", i, path, frame_bytes);
-    			continue;
-			}
-			
-			// copy only expected RGBA pixels (ignore any padding/extra)
-			memcpy(pbuffer, p, (size_t)frame_bytes);
-
+		if ( have_btf_texture ) {
 			color[0] = color[1] = color[2] = 0.0f;
-			ptexel						 = pbuffer;
-			fbuffer						= malloc(texels * 4 * sizeof(float));
-			ftexel						 = fbuffer;
+			// FIXME IF MORE THAN ONE FORMAT IS ACTUALLY IMPLEMENTED.
+			ptexel = btf_texture.colordata;
+			fbuffer = malloc(texels * 4 * sizeof(float));
+			ftexel = fbuffer;
 
 			for (count = texels; count--;) {
 				cur_color[0] 	= (float)(*ptexel++); // r
@@ -341,15 +290,19 @@ void CalcTextureReflectivity(void) {
 				*ftexel++ = a;
 			}
 
+
+			//printf("%s w: %i, h: %i, colorsize: %i, contents: %i flags: %i value: %i::\n", texinfo[i].texture, 
+			//		btf_texture.width, btf_texture.height, btf_texture.colordatasize,
+			//		btf_texture.contents, btf_texture.surfaceflags, btf_texture.value);			
+
 			texture_data[i] = fbuffer;
 			//NOTE; these don't appear to be actually used anywhere; but I'm setting them anyway.
-			texture_sizes[i][0] = mt_btf->width;
-			texture_sizes[i][1] = mt_btf->height;
-			free(pbuffer);
-			
-			// we can free the loaded buffer now, because the texture data was copied.
-			free(mt_btf);
-			mt_btf = NULL;
+			texture_sizes[i][0] = btf_texture.width;
+			texture_sizes[i][1] = btf_texture.height;
+			free(btf_texture.colordata);
+			free(btf_buffer);
+			memset(&btf_texture, 0, sizeof(btf_texture));
+
 
 			// skip the rest of the wal / tga loading.
 			goto calc_reflectivity;

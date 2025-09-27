@@ -191,11 +191,13 @@ int32_t main(int32_t argc, char *argv[]) {
 	qboolean do_bsp  = false;
 	qboolean do_vis  = false;
 	qboolean do_rad  = false;
+#ifndef BLACKENED	
 	qboolean do_data = false;
+#endif	
 
     ThreadSetDefault();
 #ifdef BLACKENED
-    printf("\n\n=============================== bimap =================================\n");
+    printf("=============================== bimap =================================\n");
     printf("Map build tool for Secret Cell: Vigil7\n");
     printf("Forked from q2tools-220: https://github.com/qbism/q2tools-220\n");
     printf( "Build %i %s %s\n", build_number( 20250923 ), __DATE__, __TIME__ );
@@ -224,8 +226,6 @@ int32_t main(int32_t argc, char *argv[]) {
 		else
 			printf("\tBIGAME is not Set\n" );
 	}
-
-	printf("\n");
 #else
     printf("\n\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< q2tool >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
 #endif
@@ -513,8 +513,13 @@ int32_t main(int32_t argc, char *argv[]) {
                "For complete options list:  q2tool -help\n"
 #endif               
                "-bsp\n"
+#ifdef BLACKENED
+               "    -chop #                  -choplight #\n"
+               "    -micro #                 -nosubdiv\n\n"
+#else			   
                "    -chop #                  -choplight #         -qbsp \n"
                "    -largebounds             -micro #             -nosubdiv\n\n"
+#endif			   
                "-vis\n"
                "    -fast                    -threads #\n\n"
                "-rad\n"
@@ -524,9 +529,11 @@ int32_t main(int32_t argc, char *argv[]) {
                "    -maxlight #           -noedgefix          -nudge #\n"
                "    -saturate #           -scale #            -smooth #\n"
                "    -subdiv               -sunradscale #      -threads #\n\n"
+#ifdef BLACKENED
                "-data\n"
                "    -archive [path]         -release [path]       -only [model]\n"
                "    -3ds                    -lwo                  -compress\n\n"
+#endif			   
                "set paths:\n"
                "    -basedir [path]         -moddir [path]        -gamedir [path]\n\n");
 
@@ -535,12 +542,15 @@ int32_t main(int32_t argc, char *argv[]) {
 
     for (; i < argc; i++) {
         size_t input_length = strlen(argv[i]);
+#ifndef BLACKENED		
         qboolean is_data    = strcmp(argv[i] + input_length - 4, ".qdt") == 0;
 
         if (do_data) {
             if (!is_data)
                 Error("data operation requires a qdt file input.");
-        } else if (do_bsp || do_vis || do_rad) {
+        } else 
+#endif		
+		if (do_bsp || do_vis || do_rad) {
             if (!input_length)
                 Error("Operation requires a map file input.");
         }
@@ -599,10 +609,11 @@ int32_t main(int32_t argc, char *argv[]) {
             printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BEGIN rad >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
             RAD_ProcessArgument(argv[i]);
         }
-
+#ifndef BLACKENED
         if (do_data) {
             printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<< BEGIN data >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n");
             DATA_ProcessArgument(argv[i]);
         }
+#endif		
     }
 }

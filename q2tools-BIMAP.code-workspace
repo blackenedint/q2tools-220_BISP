@@ -9,7 +9,9 @@
 			"qbsp.h": "c",
 			"polylib.h": "c",
 			"typeinfo": "c",
-			"qrad.h": "c"
+			"qrad.h": "c",
+			"bi_texture.h": "c",
+			"type_traits": "c"
 		}
 	}
 }
