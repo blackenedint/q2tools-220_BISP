@@ -1546,18 +1546,24 @@ void CreateDirectLights(void) {
         if (dl->falloff < 0)
             dl->falloff = 0;
 
-        intensity = FloatForKey(e, "light");
-        if (!intensity)
-            intensity = FloatForKey(e, "_light");
-        if (!intensity)
-            intensity = 300;
+		//Tony; if the like has 4 values (color255)
+		char* _light = ValueForKey(e, "_light");
+		if (_light != NULL && (sscanf(_light, "%f %f %f %f", &dl->color[0], &dl->color[1], &dl->color[2], &intensity) == 4) ) {
+				ColorNormalize(dl->color, dl->color );
+		} else {
+        	intensity = FloatForKey(e, "light");
+        	if (!intensity)
+            	intensity = FloatForKey(e, "_light");
+        	if (!intensity)
+            	intensity = 300;
 
-        _color = ValueForKey(e, "_color");
-        if (_color && _color[0]) {
-            sscanf(_color, "%f %f %f", &dl->color[0], &dl->color[1], &dl->color[2]);
-            ColorNormalize(dl->color, dl->color);
-        } else
-            dl->color[0] = dl->color[1] = dl->color[2] = 1.0;
+        	_color = ValueForKey(e, "_color");
+        	if (_color && _color[0]) {
+            	sscanf(_color, "%f %f %f", &dl->color[0], &dl->color[1], &dl->color[2]);
+            	ColorNormalize(dl->color, dl->color);
+        	} else
+            	dl->color[0] = dl->color[1] = dl->color[2] = 1.0;
+		}
 
         dl->intensity = intensity * entity_scale;
         dl->type      = emit_point;
