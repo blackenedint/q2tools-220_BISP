@@ -12,6 +12,9 @@
 #define BTF_VER_MAJOR 1
 #define BTF_VER_MINOR 0
 
+#define BTFVersion( vmaj, vmin ) ((vmaj * 100) + (vmin * 10))
+#define BTFHighest() ((BTF_VER_MAJOR*100) + (BTF_VER_MINOR*10))
+
 #define SHA1_BUFFER_SIZE 20
 #define MAX_BITEXTURE_NAME  64
 
@@ -55,10 +58,10 @@ typedef struct btf_texinfo_s
 	int16_t		animType;
 	int16_t		frame_count;
 
+	byte		reserved[44];
+
 	int32_t		metadatasize;
 	uint32_t	metadatatype;
-
-	byte		reserved[44];
 } btf_texinfo_t;
 
 typedef struct btf_frame_s

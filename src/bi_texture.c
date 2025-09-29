@@ -19,9 +19,7 @@ qboolean BTFLoadFromBuffer( byte* buffer, size_t buffersize, qboolean include_co
 		qprintf("invalid btf header %i\n", hdr->ident );
 		return false;
 	}
-
-	if ( LittleShort(hdr->ver_major) != BTF_VER_MAJOR ||
-		LittleShort(hdr->ver_minor) != BTF_VER_MINOR ) {
+	if ( BTFVersion(LittleShort(hdr->ver_major), LittleShort(hdr->ver_minor) ) > BTFHighest() ) {
 			qprintf("unsupported btf version: %i.%i\n", hdr->ver_major, hdr->ver_minor);
 			return false;
 	}
