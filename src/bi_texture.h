@@ -26,6 +26,8 @@
 #define MAX_ALTERNATE_TEX 10
 static const char* BITEXTURE_EXT = "btf"; //leave with the . for bimap
 
+#define BTF_METAQ2 (('A'<<24) + ('T'<<16) + ('M'<<8) + 'Q')	//QMTA
+
 typedef enum
 {
 	FMT_RGBA = 0,
@@ -38,9 +40,11 @@ typedef enum
 {
 	Anim_None = 0,
 	Anim_Sequence,
-	Anim_Random
+	Anim_Random,
+	Anim_Sprite
 } btf_anim_type;
 
+#pragma pack(push, 1)
 typedef struct btf_header_s
 {
 	uint32_t 	ident;
@@ -58,31 +62,37 @@ typedef struct btf_texinfo_s
 	int16_t		animType;
 	int16_t		frame_count;
 
-	byte		reserved[44];
+	int32_t		framedatasize;
+	int32_t		framedataoffset;
 
 	int32_t		metadatasize;
-	uint32_t	metadatatype;
+	int32_t		metadataoffset;
 } btf_texinfo_t;
 
 typedef struct btf_frame_s
 {
 	uint32_t	ident;
 	char		sha1[SHA1_BUFFER_SIZE];
-	byte		reserved[36];
+	byte		reserved[40];
 } btf_frame_t;
 
+typedef struct btf_metadata_s
+{
+	uint32_t ident;
+} btf_metadata_t;
+
 // metadata for quake2/vigil7
-#define BTF_METAQ2 (('A'<<24) + ('T'<<16) + ('M'<<8) + 'Q')	//QMTA
 typedef struct btf_q2meta_s
 {
+	uint32_t	ident;
 	int32_t		surfaceflags;
 	int32_t		contents;
 	float		value;
 	int16_t		emissive;
 	int16_t		alternate_count;
-	//								//16
+	//followed by alternate_count * char[btf::MAX_TEXTURE_NAME]
 } btf_q2meta_t;
-
+#pragma pack(pop)
 
 // to make my life not complete hell.
 typedef struct btf_texture_s

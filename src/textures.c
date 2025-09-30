@@ -99,7 +99,7 @@ int32_t FindMiptex(char *name) {
 		if ( moddir[0] != 0 ) {
 			sprintf(pakpath, "textures/%s.%s", name, BITEXTURE_EXT );
 			sprintf(path, "%s%s", moddir, pakpath);
-			//printf("attempting to load: %s\n", path );
+			qprintf("attempting to load: %s\n", path );
 			byte* btf_buf;
 			size_t btf_len = -1;
 			if ( (btf_len = TryLoadFile(path, (void **)&btf_buf, false)) != -1 ||
@@ -110,7 +110,7 @@ int32_t FindMiptex(char *name) {
 					textureref[i].value = btf_texture.value;
 					textureref[i].flags = btf_texture.surfaceflags;
 					textureref[i].contents = btf_texture.contents;
-					//printf("%s contents: %i flags: %i value: %i\n", name, textureref[i].contents, textureref[i].flags, textureref[i].value);
+					qprintf("%s contents: %i flags: %i value: %i\n", name, textureref[i].contents, textureref[i].flags, textureref[i].value);
 					mod_fail = false;
 				}					
 				free( btf_buf );
